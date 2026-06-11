@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  branchId     String?
+  isActive     Boolean  @default(true)
+
+  branch       Branch?  @relation(fields: [branchId], references: [id])
+  leads        Lead[]
+  customers    Customer[]
+  deals        Deal[]
+  orders       Order[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  SALES
+  OPERATIONS
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+
+  users     User[]
+  leads     Lead[]
+  customers Customer[]
+  deals     Deal[]
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  name           String
+  phone          String
+  whatsappPhone  String?
+  email          String?
+  source         LeadSource @default(WALK_IN)
+  status         LeadStatus @default(NEW)
+
+  interestedIn   String?
+  budgetRange    String?
+  notes          String?
+
+  branchId       String
+  assignedToId   String?
+  customerId     String?
+
+  branch         Branch    @relation(fields: [branchId], references: [id])
+  assignedTo     User?     @relation(fields: [assignedToId], references: [id])
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  deals          Deal[]
+
+  nextFollowUpAt DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum LeadSource {
+  WALK_IN
+  PHONE
+  FACEBOOK
+  INSTAGRAM
+  REFERRAL
+  WHATSAPP
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String
+  whatsappPhone String?
+  email         String?
+  address       String?
+  notes         String?
+
+  branchId      String
+  assignedToId  String?
+
+  branch        Branch @relation(fields: [branchId], references: [id])
+  assignedTo    User?  @relation(fields: [assignedToId], references: [id])
+
+  leads         Lead[]
+  deals         Deal[]
+  orders        Order[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Deal {
+  id             String      @id @default(cuid())
+  title          String
+  value          Decimal?    @db.Decimal(12,2)
+  stage          DealStage   @default(NEW_LEAD)
+  expectedCloseAt DateTime?
+  lostReason     String?
+
+  leadId         String?
+  customerId     String?
+  branchId       String
+  assignedToId   String?
+
+  lead           Lead?      @relation(fields: [leadId], references: [id])
+  customer       Customer?  @relation(fields: [customerId], references: [id])
+  branch         Branch     @relation(fields: [branchId], references: [id])
+  assignedTo     User?      @relation(fields: [assignedToId], references: [id])
+  orders         Order[]
+
+  notes          String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum DealStage {
+  NEW_LEAD
+  CONTACTED
+  SHOWROOM_VISIT
+  QUOTATION_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+
+  customerId     String
+  dealId         String?
+  branchId       String
+  assignedToId   String?
+
+  status         OrderStatus @default(NEW_ORDER)
+
+  kitchenType    String?
+  material       String?
+  color          String?
+  totalAmount    Decimal?    @db.Decimal(12,2)
+  paidAmount     Decimal?    @db.Decimal(12,2)
+  expectedDeliveryAt DateTime?
+
+  notes          String?
+
+  customer       Customer @relation(fields: [customerId], references: [id])
+  deal           Deal?    @relation(fields: [dealId], references: [id])
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  assignedTo     User?    @relation(fields: [assignedToId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum OrderStatus {
+  NEW_ORDER
+  MEASUREMENTS
+  DESIGN
+  QUOTATION_APPROVED
+  MANUFACTURING
+  READY_FOR_DELIVERY
+  DELIVERED
+  INSTALLED
+  COMPLETED
+  CANCELLED
+}
